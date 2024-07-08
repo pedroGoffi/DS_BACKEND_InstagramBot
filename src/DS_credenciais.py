@@ -1,5 +1,6 @@
 from os import getenv
 from dataclasses import dataclass
+from .DS_Debug import *
 from typing import Optional, List
 
 
@@ -48,6 +49,8 @@ def loadAllInstaLoginData() -> list[InstaLoginData]:
     while True:        
         dataLogin: Optional[InstaLoginData] = loadInstaLoginFromID(id=id, ignoreErr=True)                
         if dataLogin is None:
+            if envVars.get("DEBUG").value in "NA":
+                print(f"[GOFFI-DS_CREDENTIALS]: Carregado com {'ERRO' if len(instaLoginDataList) == 0 else 'SUCESSO'} {len(instaLoginDataList)} credenciais")
             return instaLoginDataList
                 
         instaLoginDataList.append(dataLogin)        

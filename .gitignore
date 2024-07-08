@@ -1,0 +1,8 @@
+config
+config/*
+
+.mypy_cache
+.mypy_cache/*
+
+src/__pycache__
+*.pyc

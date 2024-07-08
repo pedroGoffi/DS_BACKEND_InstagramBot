@@ -1,10 +1,9 @@
 import instapi
-import glob
-import os 
 from pathlib import Path
 from . import DS_credenciais
 from time import gmtime, strftime
-from typing import Optional, NoReturn, Union
+from uuid import uuid4
+from typing import Optional, NoReturn, Union, Any
 
 class DS_ErrLog:
     path: Path
@@ -38,7 +37,9 @@ class DS_ErrLog:
             timeInformation: str = strftime("%Y-%m-%d %H:%M:%S", gmtime())
             file.write(f"{timeInformation}:\n{logDescription}\n")
         
-    def getPathName(self) -> str: return self.path.__str__()    
+    def getPathName(self) -> str: 
+        return self.path.__str__()    
+    
     def readLogIdFromLogFileName(self, logName: str) -> Union[int | NoReturn]:
         numberPositionInLogName: int = logName.find("LOG") + len("LOG")        
         dotPositionInLogName: int = logName.find(".")
@@ -61,9 +62,13 @@ class DS_ErrLog:
 class DS_InstaBot:    
     instaClient: instapi.Client
     logged: bool = False
+    username: str
+    cachedInfo: dict[str, dict[str, dict]] = {}
+
     def __init__(self, loginData: DS_credenciais.InstaLoginData):        
         print("[GOFFI-DS_BOT]: Iniciando BOT")        
         loginSuccess: bool = self.TryLogin(loginData=loginData)
+        self.username = loginData.username
         if not loginSuccess:
             print(f"[GOFFI-DS_BOT]: DS_BOT Não conseguiu entrar na conta, verifique as credenciais.")
             self.shutdown()
@@ -74,10 +79,13 @@ class DS_InstaBot:
     def shutdown(self):
         print(f"[GOFFI-DS_BOT]: Obrigado por ultilizar BOT ainda em desenvolvimento, contate pedroGoffi para recomendações.")
         if self.logged:
-            self.instaClient.logout()
+            
+            try: self.instaClient.logout()
+            except: pass
 
     def TryLogin(self, loginData: DS_credenciais.InstaLoginData) -> bool:         
-        try: 
+        
+        try:             
             self.instaClient = instapi.Client(username=loginData.username, password=loginData.password)
             self.instaClient.login()            
             self.logged = True
@@ -85,20 +93,34 @@ class DS_InstaBot:
             print(f"[GOFFI-DS_BOT]: Erro ao entrar na conta")
             print("Verifique o LOG de erro em ")
             DS_ErrLog(loginErr).save()            
-            return False
-                
-                
+            return False                                
         except Exception as unknownErr:
             print(f"[GOFFI-DS_BOT]: Erro Inesperado ao entrar na conta")
             print(f"[GOFFI-DS_BOT]: Perigo de bloqueio de IP")            
             print(f"[GOFFI-DS_BOT]: Verifique o LOG de erro em ")
-            DS_ErrLog(unknownErr).save()
-            
-            return False
-            
-
+            DS_ErrLog(unknownErr).save()    
+            return False        
+        
         return True
+    
 
 
+    def getFollowers(self) -> dict:
+        if (cached_followers := self.cachedInfo.get("followers")) is not None:
+            return cached_followers.get("followers").get("users")
+        
 
+        print(f"[GOFFI-DS_BOT]: Carregando informações de seguidores para [{self.username}]")
+        self.cachedInfo["followers"] = {}
+        accountFollowersInfo: dict = self.instaClient.user_followers(self.instaClient.authenticated_user_id, self.instaClient.generate_uuid())
+        for keyInfo in accountFollowersInfo.keys():            
+            info: Any = accountFollowersInfo[keyInfo]
+            self.cachedInfo["followers"][keyInfo] = info
 
+            print(f"\t[*] Salvo em cache [{self.username}] [{keyInfo}]")
+            
+        
+        return accountFollowersInfo.get("users")
+
+    
+    def getFollowersCount(self): return len(self.getFollowers())
